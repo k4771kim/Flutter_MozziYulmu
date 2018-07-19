@@ -1,0 +1,17 @@
+.DS_Store
+.dart_tool/
+
+.packages
+.pub/
+
+build/
+lib/constants/
+
+.flutter-plugins
+
+ios/
+android/
+
+.vscode/
+.idea/
+test/
