@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:carousel_pro/carousel_pro.dart';
+import 'package:firebase_admob/firebase_admob.dart';
 import 'package:http/http.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -8,6 +9,10 @@ import 'package:flutter/foundation.dart';
 import 'constants/constants.dart';
 
 void main() => runApp(MozziYulmu());
+// const String testDevice = 'kGADSimulatorID';
+
+var appId = Platform.isIOS ? appIdIOS : appIdAndroid;
+var bannerId = Platform.isIOS ? bannerIdIOS : bannerIdAndroid;
 
 class MozziYulmu extends StatefulWidget {
   @override
@@ -21,6 +26,7 @@ class MozziYulmuState extends State<MozziYulmu> {
   var clapOpacity = 0.0;
   var currentPage = 0;
   final Firestore catsFirestore = Firestore.instance;
+
   addVotes(type) {
     var name = type == 'm' ? 'Mozzi' : type == 'y' ? 'Yulmu' : null;
 
@@ -37,6 +43,7 @@ class MozziYulmuState extends State<MozziYulmu> {
   }
 
   _fetchData() async {
+    print(SERVER_URL);
     final response = await get(SERVER_URL);
     if (response.statusCode == 200) {
       final map = json.decode(response.body);
@@ -61,12 +68,60 @@ class MozziYulmuState extends State<MozziYulmu> {
     addVotes(mozziYulmuImage[currentPage][10]);
   }
 
+  BannerAd mozziYulmuBanner;
+
+  BannerAd createBannerAd() {
+    final MobileAdTargetingInfo targetingInfo = new MobileAdTargetingInfo(
+      // testDevices: testDevice != null ? <String>[testDevice] : null,
+      keywords: <String>['foo', 'bar'],
+      contentUrl: 'http://foo.com/bar.html',
+      birthday: new DateTime.now(),
+      childDirected: true,
+      gender: MobileAdGender.male,
+    );
+    return new BannerAd(
+      // Replace the testAdUnitId with an ad unit id from the AdMob dash.
+      // https://developers.google.com/admob/android/test-ads
+      // https://developers.google.com/admob/ios/test-ads
+      // adUnitId: 'ca-app-pub-3940256099942544/2934735716',
+      // adUnitId: 'ca-app-pub-3940256099942544/6300978111',
+      adUnitId: bannerId,
+      size: AdSize.leaderboard,
+      // targetingInfo: targetingInfo,
+      // targetingInfo: targetingInfo,
+      listener: (MobileAdEvent event) {},
+    );
+  }
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+    FirebaseAdMob.instance.initialize(appId: appId);
+    //   MobileAdTargetingInfo targetingInfo = new MobileAdTargetingInfo(
+    // keywords: <String>['mozzi', 'yulmu'],
+    // contentUrl: 'https://flutter.io',
+    // birthday: new DateTime.now(),
+    // childDirected: false,
+    // designedForFamilies: false,
+    // gender: MobileAdGender.male, // or MobileAdGender.female, MobileAdGender.unknown
+    // testDevices: <String>[], // Android emulators are considered test devices
+// );
 
+    mozziYulmuBanner = createBannerAd()
+      ..load()
+      ..show(
+        // Positions the banner ad 60 pixels from the bottom of the screen
+        // Banner Position
+        anchorType: AnchorType.bottom,
+      );
     _fetchData();
+  }
+
+  createChild(image) {
+    return mozziYulmuImage.map((image) {
+      return new Image.network(SERVER_URL + image);
+    }).toList();
   }
 
   @override
@@ -75,26 +130,16 @@ class MozziYulmuState extends State<MozziYulmu> {
         home: new Scaffold(
             appBar: new AppBar(title: new Text('Mozzi Yulmu Votes')),
             body: new Column(children: <Widget>[
-              new Flexible(child: _buildVotesCount()),
               new Flexible(
                 child: new Container(
                     child: new Stack(children: <Widget>[
-                  Carousel(
-                    images: mozziYulmuImage.map((image) {
-                      return new NetworkImage(SERVER_URL + image);
-                    }).toList(),
-                    autoplay: false,
-                    boxFit: BoxFit.contain,
-                    showIndicator: false,
-                    borderRadius: false,
-                    moveIndicatorFromBottom: 180.0,
-                    noRadiusForIndicator: true,
-                    onPageChanged: (page) {
-                      setState(() {
-                        this.currentPage = page;
-                      });
-                    },
-                  ),
+                  PageView(
+                      children: createChild(mozziYulmuImage),
+                      onPageChanged: (page) {
+                        setState(() {
+                          this.currentPage = page;
+                        });
+                      }),
                   new Opacity(
                     opacity: clapOpacity,
                     child: new Center(
@@ -110,8 +155,8 @@ class MozziYulmuState extends State<MozziYulmu> {
                     },
                   )
                 ])),
-                flex: 3,
-              )
+              ),
+              new Flexible(child: _buildVotesCount()),
             ])));
   }
 }
